@@ -8,6 +8,7 @@ from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
+from web_demo import dashboard_html, make_report
 
 
 class FakePayPalClient:
@@ -161,6 +162,14 @@ class AgenticStressLabTests(unittest.TestCase):
         self.assertIn("SAME_PAYMENT", req["relations"])
         self.assertIn("MUST_BLOCK", req["relations"])
         self.assertIn("output_schema", req)
+
+    def test_dashboard_renders_and_runs_offline(self):
+        html = dashboard_html()
+        self.assertIn("Agentic Commerce", html)
+        self.assertIn("/api/report", html)
+        report = make_report(variants=1)
+        self.assertEqual(report["summary"]["cases"], 8)
+        self.assertEqual(report["summary"]["boundary_pass"], 8)
 
 
 if __name__ == "__main__":

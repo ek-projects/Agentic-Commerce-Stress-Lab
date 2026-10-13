@@ -203,3 +203,14 @@ Current verified default result with two deterministic comparison agents:
 The run generates `differential_report.json` and `stress_report.html`. The HTML report includes intent lineage so a reviewer can see which actor changed each payment field. The unsafe attempts are expected findings from the negative-control agent, not failures of the boundary.
 
 External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real model/provider is still required before we can claim AI-generated mutations or real-model agent results.
+
+
+### Local dashboard
+
+A zero-dependency local UI is available for the demo:
+
+```bash
+python3 web_demo.py
+```
+
+It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. It does not make PayPal network calls.
