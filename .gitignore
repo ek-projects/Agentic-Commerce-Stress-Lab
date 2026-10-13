@@ -25,3 +25,7 @@ qwen15_decision_report.json
 qwen15_decision_report.html
 
 .runtime/
+smollm2_decision_report*.json
+smollm2_decision_report*.html
+model_comparison_report.json
+model_comparison_report.html

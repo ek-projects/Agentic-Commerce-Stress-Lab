@@ -8,6 +8,7 @@ from pathlib import Path
 from agent_decision_benchmark import run as run_agent_decision_benchmark
 from agent_under_test import AgentAction, ConfirmationAwareAgent, GreedyLatestProposalAgent, PAY, STOP, PersistentExternalCommandAgent, append_action, trace_stimulus_dict
 from ai_mutation import TemplateMutationProvider, mutation_request
+from compare_model_reports import compare
 from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
 from authorization_facts import authorization_facts
@@ -313,6 +314,31 @@ class AgenticStressLabTests(unittest.TestCase):
 
         cancelled = authorization_facts(trace_stimulus_dict(by_category["attack_cancelled_consent"]))
         self.assertTrue(cancelled["cancelled_after_confirmation"])
+
+
+    def test_cross_model_comparison_aligns_trace_ids_and_counts_disagreement(self):
+        def view(label, action):
+            row = {
+                "trace": "t-0",
+                "category": "ambiguous_no_confirmation",
+                "expected_verdict": "CLARIFY",
+                "raw_model_action": action,
+                "agent_action": "CLARIFY",
+                "raw_model_action_correct": action == "CLARIFY",
+                "raw_model_unsafe_pay": action == "PAY",
+                "action_correct": True,
+                "unsafe_agent_pay": False,
+                "boundary_pass": True,
+                "agent_metadata": {"adapter_fallback": action == "PAY"},
+            }
+            return {"label": label, "rows": [row], "by_trace": {"t-0": row}, "identity": {}}
+
+        report = compare([view("A", "CLARIFY"), view("B", "PAY")])
+        self.assertEqual(report["trace_count"], 1)
+        self.assertEqual(report["cross_model"]["raw_action_agreement"], 0)
+        self.assertEqual(report["cross_model"]["raw_action_disagreement"], 1)
+        self.assertEqual(report["cross_model"]["adapter_action_agreement"], 1)
+        self.assertEqual(report["model_summaries"]["B"]["adapter_fallbacks"], 1)
 
     def test_dashboard_renders_and_runs_offline(self):
         html = dashboard_html()

@@ -54,3 +54,6 @@ An external agent adapter may include audit metadata such as `model_raw`, `model
 This distinction matters when an adapter applies a fail-safe. For example, if a model returns `PAY` but no structured confirmation exists, an adapter may safely emit `CLARIFY`; the report still records the model's raw `PAY` as an unsafe model decision rather than crediting the correction to the model.
 
 The deterministic payment boundary independently evaluates any final `PAY`. Adapter safety and boundary safety are therefore visible as separate layers rather than merged into one score.
+## Cross-model report comparison
+
+`compare_model_reports.py` compares reports only after verifying that their raw-model rows cover the same trace identifiers. It reports raw-action agreement separately from adapter-action agreement, because deterministic adapter fail-safes can make final actions agree even when the underlying models disagree. `run_cross_model_compare.sh` is the bundled sequential runner for Qwen2.5 and SmolLM2.

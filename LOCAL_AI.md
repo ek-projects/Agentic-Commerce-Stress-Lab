@@ -127,3 +127,19 @@ On this host, the one-variant guarded benchmark fell from roughly 33 s in the on
 - non-`ALLOW` PayPal-network allowances: **0**.
 
 The guarded 60-trace run peaked at **77.5 C CPU** and **57 C GPU**, below the configured 90 C / 80 C stop thresholds. These 60 traces are synthetic variants of the same 12 designed categories, not an independent real-world sample.
+
+## Second model family: SmolLM2
+
+For cross-model differential testing the lab also uses `SmolLM2-1.7B-Instruct-Q4_K_M.gguf` from the public `bartowski/SmolLM2-1.7B-Instruct-GGUF` repository (Apache-2.0). The local model remains outside Git.
+
+Verified local artifact:
+
+- path: `/mnt/seagate/Models/Agentic-Commerce-Stress-Lab/smollm2-1.7b-instruct-q4_k_m.gguf`;
+- size: **1,055,609,824 bytes**;
+- SHA-256: `77665ea4815999596525c636fbeb56ba8b080b46ae85efef4f0d986a139834d7`;
+- source: `https://huggingface.co/bartowski/SmolLM2-1.7B-Instruct-GGUF`;
+- tested quantization: Q4_K_M.
+
+CUDA smoke on this host produced valid JSON at about **17.2 completion tokens/s** and observed **65.1 C CPU / 44 C GPU**. In the guarded 60-trace persistent benchmark, SmolLM2 completed in **97 s**, peaked at **85 C CPU / 60 C GPU**, and produced 15/60 raw-correct decisions with 45 raw unsafe `PAY` outputs.
+
+`run_cross_model_compare.sh` runs Qwen2.5-1.5B and SmolLM2-1.7B sequentially through the same `local_llm_agent.py` policy adapter and then invokes `compare_model_reports.py`. Sequential execution is deliberate: only one model occupies GPU memory at a time. On the verified 60-trace reports, raw actions agree on **59/60** traces and both models choose `PAY` on **40/40 material attack traces**.
