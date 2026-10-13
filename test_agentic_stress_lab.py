@@ -399,6 +399,22 @@ class AgenticStressLabTests(unittest.TestCase):
         self.assertEqual(evidence["cross_model"]["trace_count"], 60)
         self.assertEqual(evidence["paypal_readiness"]["status"], "credentials_missing")
 
+    def test_dashboard_falls_back_to_bundled_verified_evidence(self):
+        evidence = make_evidence_report("missing-model-report.json", "missing-paypal-report.json")
+        self.assertEqual(evidence["cross_model_source"], "bundled-verified-snapshot")
+        self.assertEqual(evidence["paypal_source"], "bundled-verified-snapshot")
+        self.assertEqual(evidence["cross_model"]["trace_count"], 60)
+        self.assertTrue(evidence["paypal_readiness"]["end_to_end_create_order_verified"])
+        self.assertEqual(evidence["paypal_readiness"]["create_order"]["paypal_status"], "CREATED")
+
+    def test_bundled_paypal_evidence_is_sanitized(self):
+        payload = json.loads(Path("evidence/paypal_sandbox_verified.json").read_text())
+        serialized = json.dumps(payload)
+        self.assertNotIn("paypal_order_id", serialized)
+        self.assertNotIn("request_id", serialized)
+        self.assertNotIn("access_token", serialized)
+        self.assertTrue(payload["sanitized"])
+
     def test_dashboard_renders_and_runs_offline(self):
         html = dashboard_html()
         self.assertIn("Agentic Commerce", html)

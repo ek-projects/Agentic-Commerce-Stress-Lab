@@ -8,6 +8,17 @@ Core question:
 
 > Given one user mandate, do semantically equivalent conversation variants produce the same PayPal order, while material or ambiguous changes stop before money movement?
 
+## Judge quick start
+
+The core judge demo requires only Python 3.10+ and makes no payment network call while being viewed:
+
+```bash
+python3 -m unittest -v
+python3 web_demo.py
+```
+
+Open `http://127.0.0.1:8088`. The dashboard runs the offline differential suite and prefers fresh local model/PayPal reports when present; on a clean clone it falls back to the sanitized verified snapshots committed under `evidence/`. See `SUBMISSION.md` for the Devpost-ready description and sub-three-minute video script.
+
 ## Current status
 
 ### Phase 1 — immutable-intent smoke test
@@ -162,20 +173,21 @@ PayPal Sandbox
 
 AI should generate realistic stress cases; AI should not be the final authority deciding whether money may move.
 
-## Hackathon readiness gaps
+## Hackathon submission status
 
-Before submission the project still needs:
+The technical proof-of-concept is judge-ready: authenticated PayPal Sandbox create-order is verified, two local model families have been compared on the same controlled corpus, the dashboard separates unsafe model decisions from boundary containment, an open-source license is present, and the clean-clone demo includes sanitized verified evidence.
 
-1. verified PayPal Sandbox authentication and create-order call;
-2. a stronger AI red-team generator or larger validated corpus — the current 0.5B local model is useful for hostile text but still needs fallback data on 4/10 mutations in the five-seed run;
-3. at least one additional independent agent/model/provider path beyond the verified local Qwen agent-under-test;
-4. polish the existing lineage/dashboard UI into the final hackathon demo surface;
-5. stronger benchmark-validity checks and stronger baselines;
-6. public Git repository, reproducible setup and sub-three-minute demo video.
+External delivery items still required before Devpost submission:
+
+1. publish/push this repository to a public GitHub, GitLab, or Bitbucket URL;
+2. record the actual dashboard and upload a public YouTube demo under three minutes;
+3. paste the final description, repository URL, video URL, and tool list into Devpost.
+
+`SUBMISSION.md` contains the prepared English description, evidence summary, video script, and checklist.
 
 ## Safety
 
-- No real payments.
+- No live or real-money payments; PayPal Sandbox only.
 - No production PayPal endpoint.
 - No credentials committed to source.
 - No claim is made about fraud detection, merchant risk scoring or real-world attack prevalence.
@@ -287,7 +299,7 @@ A zero-dependency local UI is available for the demo:
 python3 web_demo.py
 ```
 
-It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. When local evidence files are present it also displays the cross-model comparison and PayPal Sandbox readiness state. The evidence endpoint only reads local JSON files; the dashboard itself never makes PayPal network calls or loads an LLM.
+It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. It also displays cross-model and PayPal Sandbox evidence. Fresh local reports take precedence; otherwise it uses the sanitized verified snapshots committed under `evidence/`. The evidence endpoint only reads JSON files; the dashboard itself never makes PayPal network calls or loads an LLM.
 
 ## Phase 9 — PayPal Sandbox readiness
 
@@ -315,4 +327,4 @@ Once Sandbox app credentials are supplied through the process environment, the e
 python3 paypal_readiness.py --create-order
 ```
 
-The `--create-order` path targets only `https://api-m.sandbox.paypal.com`; the existing `PayPalSandboxClient` refuses the live PayPal host. A successful future run should be claimed only when the report shows both `authenticated_sandbox_ready=true` and `end_to_end_create_order_verified=true`.
+The `--create-order` path targets only `https://api-m.sandbox.paypal.com`; the existing `PayPalSandboxClient` refuses the live PayPal host. The verified run is represented by `authenticated_sandbox_ready=true` and `end_to_end_create_order_verified=true`; the bundled snapshot omits provider identifiers and authentication material.

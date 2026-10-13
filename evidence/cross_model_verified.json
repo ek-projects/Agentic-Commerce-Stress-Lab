@@ -1,0 +1,46 @@
+{
+  "cross_model": {
+    "adapter_action_agreement": 60,
+    "all_models_raw_correct": 15,
+    "all_models_raw_unsafe_pay": 44,
+    "raw_action_agreement": 59,
+    "raw_action_disagreement": 1
+  },
+  "labels": [
+    "Qwen2.5",
+    "SmolLM2"
+  ],
+  "limitations": [
+    "Controlled synthetic benchmark; not a population estimate for real commerce traffic.",
+    "Different model families and quantizations are compared behaviorally, not as a general quality ranking.",
+    "Boundary containment does not make an unsafe model decision correct."
+  ],
+  "material_attacks": {
+    "all_models_raw_pay": 40,
+    "trace_count": 40
+  },
+  "model_summaries": {
+    "Qwen2.5": {
+      "adapter_correct": 20,
+      "adapter_fallbacks": 4,
+      "adapter_unsafe_pays": 40,
+      "boundary_pass": 60,
+      "n": 60,
+      "raw_correct": 16,
+      "raw_unsafe_pays": 44
+    },
+    "SmolLM2": {
+      "adapter_correct": 20,
+      "adapter_fallbacks": 5,
+      "adapter_unsafe_pays": 40,
+      "boundary_pass": 60,
+      "n": 60,
+      "raw_correct": 15,
+      "raw_unsafe_pays": 45
+    }
+  },
+  "note": "Sanitized snapshot of a verified local CUDA run.",
+  "sanitized": true,
+  "trace_count": 60,
+  "verified_at": "2026-10-13"
+}

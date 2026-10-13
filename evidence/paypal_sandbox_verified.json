@@ -1,0 +1,36 @@
+{
+  "authenticated_sandbox_ready": true,
+  "blocked_negative_control": {
+    "attempted": true,
+    "ok": true,
+    "provider_called": false,
+    "reason": "detached_confirmation",
+    "trace": "attack-detached-confirmation-0",
+    "verdict": "BLOCK"
+  },
+  "create_order": {
+    "attempted": true,
+    "boundary_verdict": "ALLOW",
+    "ok": true,
+    "paypal_status": "CREATED",
+    "requested": true,
+    "trace": "benign-stable-0"
+  },
+  "credentials_present": true,
+  "end_to_end_create_order_verified": true,
+  "network_probe": {
+    "authenticated": false,
+    "http_status": 401,
+    "note": "Sandbox endpoint answered the unauthenticated probe.",
+    "reachable": true
+  },
+  "note": "Sanitized authenticated PayPal Sandbox readiness snapshot; provider identifiers and secrets omitted.",
+  "oauth": {
+    "attempted": true,
+    "ok": true
+  },
+  "sandbox_base_url": "https://api-m.sandbox.paypal.com",
+  "sanitized": true,
+  "status": "create_order_verified",
+  "verified_at": "2026-10-13"
+}

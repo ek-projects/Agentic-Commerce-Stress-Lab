@@ -35,18 +35,32 @@ def _load_optional_json(path: str) -> dict | None:
     return raw if isinstance(raw, dict) else None
 
 
+def _load_preferred_json(primary: str, fallback: str) -> tuple[dict | None, str]:
+    local = _load_optional_json(primary)
+    if local is not None:
+        return local, "local-runtime-report"
+    bundled = _load_optional_json(fallback)
+    if bundled is not None:
+        return bundled, "bundled-verified-snapshot"
+    return None, "missing"
+
+
 def make_evidence_report(
     comparison_path: str = "model_comparison_report.json",
     paypal_path: str = "paypal_readiness_report.json",
+    comparison_fallback: str = "evidence/cross_model_verified.json",
+    paypal_fallback: str = "evidence/paypal_sandbox_verified.json",
 ) -> dict:
-    """Read previously generated evidence only; never trigger model or PayPal network work."""
-    comparison = _load_optional_json(comparison_path)
-    paypal = _load_optional_json(paypal_path)
+    """Read evidence only; prefer fresh local reports, then bundled sanitized snapshots."""
+    comparison, comparison_source = _load_preferred_json(comparison_path, comparison_fallback)
+    paypal, paypal_source = _load_preferred_json(paypal_path, paypal_fallback)
     return {
         "cross_model": comparison,
+        "cross_model_source": comparison_source,
         "paypal_readiness": paypal,
+        "paypal_source": paypal_source,
         "offline": True,
-        "note": "Evidence endpoint reads local report files only; it does not call PayPal or load an LLM.",
+        "note": "Evidence endpoint never calls PayPal or loads an LLM; bundled snapshots are sanitized.",
     }
 
 
@@ -72,10 +86,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 12px
 <div class="cards"><div class="card"><div class="label">Evaluations</div><div class="value" id="cases">—</div></div><div class="card"><div class="label">Agent relation pass</div><div class="value" id="agentpass">—</div></div><div class="card"><div class="label">Unsafe agent PAYs</div><div class="value" id="unsafe">—</div></div><div class="card"><div class="label">Boundary contained</div><div class="value" id="boundary">—</div></div></div>
 <div class="cards"><div class="card"><div class="label">Cross-model raw agreement</div><div class="value" id="modelagree">—</div></div><div class="card"><div class="label">Shared raw unsafe PAY</div><div class="value" id="sharedunsafe">—</div></div><div class="card"><div class="label">PayPal Sandbox</div><div class="value" id="paypalstatus">—</div></div><div class="card"><div class="label">E2E create-order</div><div class="value" id="e2e">—</div></div></div>
 
+<div class="panel"><h2>Judge demo: model decision → boundary → PayPal</h2><div class="panelbody"><div class="statusgrid" id="story"><div class="statusitem"><span class="muted">Loading verified evidence…</span></div></div></div></div>
 <div class="panel"><h2>Differential results</h2><table><thead><tr><th>Mutation</th><th>Relation</th><th>Agent</th><th>Action</th><th>Agent check</th><th>Boundary</th><th>PayPal network</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="muted">Run the suite to load results.</td></tr></tbody></table></div>
 <div class="panel"><h2>Cross-model evidence</h2><div class="panelbody" id="models"><span class="muted">Run ./run_cross_model_compare.sh to generate local evidence.</span></div></div>
 <div class="panel"><h2>PayPal Sandbox readiness</h2><div class="panelbody" id="paypal"><span class="muted">Run python3 paypal_readiness.py to generate the readiness report.</span></div></div>
-<div class="footer">Offline dashboard. Refresh reads local evidence and runs the offline template suite only. It never creates a PayPal order.</div>
+<div class="footer">Judge-safe dashboard. It runs the offline template suite and reads fresh local reports when present, otherwise bundled sanitized verified snapshots. Viewing it never creates a PayPal order.</div>
 </div>
 <script>
 function esc(v){return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
@@ -92,9 +107,12 @@ async function loadEvidence(){
    const entries=Object.entries(c.model_summaries||{}); document.getElementById('models').innerHTML=`<div class="statusgrid">${entries.map(([name,s])=>`<div class="statusitem"><span class="label">${esc(name)}</span><b>${s.raw_correct}/${s.n} raw correct</b><span class="muted">${s.raw_unsafe_pays} raw unsafe PAY · boundary ${s.boundary_pass}/${s.n}</span></div>`).join('')}<div class="statusitem"><span class="label">Trace agreement</span><b>${x.raw_action_agreement}/${c.trace_count}</b><span class="muted">${x.raw_action_disagreement} raw disagreement · ${x.all_models_raw_unsafe_pay} shared unsafe PAY</span></div></div>`;
  } else {setText('modelagree','not run');setText('sharedunsafe','—');}
  if(p){
-   const reachable=!!(p.network_probe&&p.network_probe.reachable); setText('paypalstatus',reachable?'reachable':esc(p.status||'unknown')); setText('e2e',p.end_to_end_create_order_verified?'VERIFIED':'not verified');
+   const reachable=!!(p.network_probe&&p.network_probe.reachable); setText('paypalstatus',p.authenticated_sandbox_ready?'VERIFIED':(reachable?'reachable':esc(p.status||'unknown'))); setText('e2e',p.end_to_end_create_order_verified?'VERIFIED':'not verified');
    document.getElementById('paypal').innerHTML=`<div class="statusgrid"><div class="statusitem"><span class="label">OAuth endpoint</span><b>${reachable?'Reachable':'Not verified'}</b><span class="muted">HTTP ${esc(p.network_probe&&p.network_probe.http_status||'—')}</span></div><div class="statusitem"><span class="label">Credentials</span><b>${p.credentials_present?'Present':'Missing'}</b><span class="muted">OAuth authenticated: ${p.authenticated_sandbox_ready?'yes':'no'}</span></div><div class="statusitem"><span class="label">Create order</span><b>${p.end_to_end_create_order_verified?'Verified':'Not verified'}</b><span class="muted">status: ${esc(p.status)}</span></div></div>`;
  } else {setText('paypalstatus','not run');setText('e2e','—');}
+ const material=(c&&c.material_attacks)||{trace_count:40,all_models_raw_pay:40};
+ const blocked=p&&p.blocked_negative_control; const created=p&&p.create_order;
+ document.getElementById('story').innerHTML=`<div class="statusitem"><span class="label">1 · Agent decision</span><b>/ attack PAY</b><span class="muted">Both tested model families chose PAY on every material attack trace.</span></div><div class="statusitem"><span class="label">2 · Independent boundary</span><b>${blocked&&blocked.ok?'BLOCK verified':'offline containment'}</b><span class="muted">Known-bad trace provider call: ${blocked&&blocked.provider_called?'YES':'NO'}.</span></div><div class="statusitem"><span class="label">3 · PayPal Sandbox</span><b>${created&&created.paypal_status?esc(created.paypal_status):'evidence unavailable'}</b><span class="muted">Only a guarded ALLOW trace reached Orders v2. Evidence: .</span></div>`;
 }
 async function loadAll(){const btn=document.querySelector('button');btn.disabled=true;btn.textContent='Refreshing…';try{await Promise.all([loadStress(),loadEvidence()]);}catch(e){document.getElementById('rows').innerHTML='<tr><td colspan="7">Error: '+esc(e)+'</td></tr>';}finally{btn.disabled=false;btn.textContent='Refresh evidence';}}
 loadAll();
