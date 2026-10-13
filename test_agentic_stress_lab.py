@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 import sys
@@ -17,7 +18,7 @@ from local_llm_mutator import first_json_object, normalize_plan
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
 from paypal_readiness import readiness_report
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
-from web_demo import dashboard_html, make_report
+from web_demo import dashboard_html, make_evidence_report, make_report
 
 
 class FakePayPalClient:
@@ -378,6 +379,25 @@ class AgenticStressLabTests(unittest.TestCase):
         self.assertEqual(report["cross_model"]["raw_action_disagreement"], 1)
         self.assertEqual(report["cross_model"]["adapter_action_agreement"], 1)
         self.assertEqual(report["model_summaries"]["B"]["adapter_fallbacks"], 1)
+
+
+    def test_dashboard_evidence_reads_local_reports_without_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            comparison = root / "comparison.json"
+            paypal = root / "paypal.json"
+            comparison.write_text(json.dumps({
+                "trace_count": 60,
+                "cross_model": {"raw_action_agreement": 59, "all_models_raw_unsafe_pay": 44},
+            }))
+            paypal.write_text(json.dumps({
+                "status": "credentials_missing",
+                "end_to_end_create_order_verified": False,
+            }))
+            evidence = make_evidence_report(str(comparison), str(paypal))
+        self.assertTrue(evidence["offline"])
+        self.assertEqual(evidence["cross_model"]["trace_count"], 60)
+        self.assertEqual(evidence["paypal_readiness"]["status"], "credentials_missing")
 
     def test_dashboard_renders_and_runs_offline(self):
         html = dashboard_html()

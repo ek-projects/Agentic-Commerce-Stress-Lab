@@ -287,7 +287,7 @@ A zero-dependency local UI is available for the demo:
 python3 web_demo.py
 ```
 
-It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. It does not make PayPal network calls.
+It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. When local evidence files are present it also displays the cross-model comparison and PayPal Sandbox readiness state. The evidence endpoint only reads local JSON files; the dashboard itself never makes PayPal network calls or loads an LLM.
 
 ## Phase 9 — PayPal Sandbox readiness
 
