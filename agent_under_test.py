@@ -26,6 +26,7 @@ class AgentAction:
     intent: Optional[PaymentIntent] = None
     nonce: Optional[str] = None
     digest: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class CommerceAgent(Protocol):
@@ -199,10 +200,18 @@ class ExternalCommandAgent:
         if action == PAY and intent is None:
             raise ValueError("PAY requires an intent")
 
+        metadata = {}
+        if isinstance(raw.get("metadata"), dict):
+            metadata.update(raw["metadata"])
+        for key in ("adapter_fallback", "model_raw", "model", "seed", "mode", "authorization_facts"):
+            if key in raw:
+                metadata[key] = raw[key]
+
         return AgentAction(
             action=action,
             reason=str(raw.get("reason", "")),
             intent=intent,
             nonce=raw.get("nonce"),
             digest=raw.get("digest"),
+            metadata=metadata or None,
         )

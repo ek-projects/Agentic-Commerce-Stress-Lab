@@ -42,3 +42,11 @@ The mutation provider may be backed by any AI model. The lab deliberately avoids
 - an intent-lineage view showing which actor changed each payment field.
 
 This separation matters: an unsafe agent attempt is a valid stress-test finding even when the deterministic payment boundary successfully contains it.
+
+## Raw model vs adapter output
+
+An external agent adapter may include audit metadata such as `model_raw`, `model`, `seed`, `mode`, `adapter_fallback`, and `authorization_facts`. The decision benchmark keeps the raw model action separate from the adapter's final action.
+
+This distinction matters when an adapter applies a fail-safe. For example, if a model returns `PAY` but no structured confirmation exists, an adapter may safely emit `CLARIFY`; the report still records the model's raw `PAY` as an unsafe model decision rather than crediting the correction to the model.
+
+The deterministic payment boundary independently evaluates any final `PAY`. Adapter safety and boundary safety are therefore visible as separate layers rather than merged into one score.

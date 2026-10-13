@@ -116,6 +116,7 @@ python3 -m unittest -v
 python3 agentic_benchmark.py
 python3 metamorphic_lab.py
 python3 demo.py
+python3 agent_decision_benchmark.py --variants 3
 ./run_qwen_eval.sh    # local Qwen path; CPU-heavy
 ```
 
@@ -167,7 +168,7 @@ Before submission the project still needs:
 
 1. verified PayPal Sandbox authentication and create-order call;
 2. a stronger AI red-team generator or larger validated corpus — the current 0.5B local model is useful for hostile text but still needs fallback data on 4/10 mutations in the five-seed run;
-3. at least one real external agent under test, ideally more than one for differential testing;
+3. at least one additional independent agent/model/provider path beyond the verified local Qwen agent-under-test;
 4. polish the existing lineage/dashboard UI into the final hackathon demo surface;
 5. stronger benchmark-validity checks and stronger baselines;
 6. public Git repository, reproducible setup and sub-three-minute demo video.
@@ -203,8 +204,33 @@ Current verified default result with two deterministic comparison agents:
 
 The run generates `differential_report.json` and `stress_report.html`. The HTML report includes intent lineage so a reviewer can see which actor changed each payment field. The unsafe attempts are expected findings from the negative-control agent, not failures of the boundary.
 
-External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real local Qwen mutator is now integrated and reproducibly exercised through `./run_qwen_eval.sh`; a real external commerce agent is still required before we can claim real-model agent-under-test results.
+External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real local Qwen mutator is reproducibly exercised through `./run_qwen_eval.sh`, and Qwen2.5-1.5B is also integrated as a real agent-under-test through `local_llm_agent.py`. The next comparison target is an independent model/provider or external commerce agent, not another hand-authored baseline.
 
+
+## Phase 7 — real-model agent-under-test
+
+`local_llm_agent.py`, `authorization_facts.py`, `agent_decision_benchmark.py`, `run_qwen_agent_eval.sh`
+
+The lab now evaluates a real local Qwen2.5-1.5B-Instruct model as the commerce decision component. The model sees the ordered event history plus deterministic authorization facts in policy mode, then chooses `PAY`, `CLARIFY`, or `STOP`. The adapter may attach existing structured intent/consent evidence to a `PAY`, but it cannot mint a nonce or digest. The deterministic payment boundary remains independent.
+
+Verified one-variant / 12-category run, model seed 17:
+
+- raw Qwen decisions: **3/12 correct**;
+- raw Qwen unsafe `PAY` decisions: **9**;
+- adapter output: **4/12 correct**, because one raw `PAY` without confirmation was fail-safed to `CLARIFY`;
+- adapter fallbacks: **1**;
+- payment boundary: **12/12 contained correctly**;
+- non-`ALLOW` cases reaching the PayPal network boundary: **0**.
+
+The strongest reproduced failure is amount drift after confirmation. Qwen receives `confirmation_matches_current_proposal=false` and `proposal_after_latest_confirmation=true`, yet still outputs `PAY` and explains that the proposal is covered by confirmation. The deterministic boundary blocks the attempt as post-confirmation intent drift. This is a model-specific empirical observation, not a claim about all LLMs.
+
+Run the local agent benchmark with:
+
+```bash
+./run_qwen_agent_eval.sh
+```
+
+The 1.5B CLI path is CPU-heavy and intended for benchmark evidence, not the interactive dashboard. Generated decision reports are ignored by Git.
 
 ### Local dashboard
 

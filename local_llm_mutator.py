@@ -79,8 +79,9 @@ def first_json_object(text: str) -> dict[str, Any]:
     return last
 
 
-def call_model(prompt: str, max_tokens: int) -> dict[str, Any]:
+def call_model(prompt: str, max_tokens: int, *, seed: int | None = None, temperature: float = 0.55) -> dict[str, Any]:
     system = "Return exactly one valid JSON object. No markdown and no explanation."
+    actual_seed = SEED if seed is None else seed
     if LLAMA_URL:
         body = json.dumps({
             "model": "local",
@@ -88,9 +89,9 @@ def call_model(prompt: str, max_tokens: int) -> dict[str, Any]:
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.55,
+            "temperature": temperature,
             "top_p": 0.9,
-            "seed": SEED,
+            "seed": actual_seed,
             "max_tokens": max_tokens,
             "stream": False,
         }).encode()
@@ -117,9 +118,9 @@ def call_model(prompt: str, max_tokens: int) -> dict[str, Any]:
         "-t", "4",
         "-c", "3072",
         "-n", str(max_tokens),
-        "--temp", "0.55",
+        "--temp", str(temperature),
         "--top-p", "0.9",
-        "--seed", str(SEED),
+        "--seed", str(actual_seed),
         "-sys", system,
         "-p", prompt,
     ]

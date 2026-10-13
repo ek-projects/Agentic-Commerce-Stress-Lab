@@ -11,3 +11,15 @@ differential_report.json
 stress_report.html
 qwen_differential_report.json
 qwen_stress_report.html
+qwen_agent_report.json
+qwen_agent_report.html
+qwen15_agent_report.json
+qwen15_agent_report.html
+ai_to_ai_report.json
+ai_to_ai_report.html
+ai_to_ai_native_report.json
+ai_to_ai_native_report.html
+agent_decision_report.json
+agent_decision_report.html
+qwen15_decision_report.json
+qwen15_decision_report.html

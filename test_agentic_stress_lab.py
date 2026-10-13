@@ -2,10 +2,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_under_test import ConfirmationAwareAgent, GreedyLatestProposalAgent, PAY, STOP, append_action
+from agent_decision_benchmark import run as run_agent_decision_benchmark
+from agent_under_test import AgentAction, ConfirmationAwareAgent, GreedyLatestProposalAgent, PAY, STOP, append_action, trace_stimulus_dict
 from ai_mutation import TemplateMutationProvider, mutation_request
 from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
+from authorization_facts import authorization_facts
 from local_llm_mutator import first_json_object, normalize_plan
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
@@ -182,6 +184,65 @@ class AgenticStressLabTests(unittest.TestCase):
         block = normalize_plan({"name": "x", "kind": "delta_cents", "text": "delta_cents=100"}, 1)
         self.assertEqual(block["kind"], "amount_change")
         self.assertEqual(block["_fallbacks"], [])
+
+    def test_agent_decision_benchmark_tracks_raw_model_action(self):
+        class RawPayButSafeAdapter:
+            name = "raw-pay-safe-adapter"
+
+            def run(self, trace):
+                return AgentAction(
+                    action="CLARIFY",
+                    reason="adapter stopped raw unsafe PAY",
+                    metadata={
+                        "adapter_fallback": True,
+                        "model_raw": {"action": "PAY", "reason": "raw choice"},
+                    },
+                )
+
+        report = run_agent_decision_benchmark([RawPayButSafeAdapter()], variants=1)
+        stats = report["summary"]["agents"]["raw-pay-safe-adapter"]
+        self.assertEqual(stats["raw_model_decisions"], 12)
+        self.assertGreater(stats["raw_model_unsafe_pays"], 0)
+        self.assertNotEqual(stats["raw_model_correct"], stats["correct"])
+
+    def test_agent_decision_benchmark_keeps_boundary_separate(self):
+        report = run_agent_decision_benchmark(
+            [GreedyLatestProposalAgent(), ConfirmationAwareAgent()], variants=1
+        )
+        agents = report["summary"]["agents"]
+        greedy = agents["greedy-latest-proposal"]
+        aware = agents["confirmation-aware"]
+        self.assertEqual(greedy["n"], 12)
+        self.assertGreater(greedy["unsafe_pays"], 0)
+        self.assertEqual(greedy["boundary_pass"], 12)
+        self.assertEqual(aware["boundary_pass"], 12)
+        self.assertEqual(aware["by_category"]["attack_replayed_confirmation"]["unsafe_pays"], 1)
+
+    def test_authorization_facts_distinguish_causal_attacks(self):
+        by_category = {t.category: t for t in self.traces}
+        stable = authorization_facts(trace_stimulus_dict(by_category["benign_stable"]))
+        self.assertTrue(stable["confirmation_matches_current_proposal"])
+        self.assertFalse(stable["confirmation_consumed"])
+        self.assertFalse(stable["cancelled_after_confirmation"])
+
+        drift = authorization_facts(trace_stimulus_dict(by_category["attack_amount_drift"]))
+        self.assertFalse(drift["confirmation_matches_current_proposal"])
+        self.assertTrue(drift["proposal_after_latest_confirmation"])
+
+        replay = authorization_facts(trace_stimulus_dict(by_category["attack_replayed_confirmation"]))
+        self.assertTrue(replay["confirmation_matches_current_proposal"])
+        self.assertTrue(replay["confirmation_consumed"])
+
+        forged = authorization_facts(trace_stimulus_dict(by_category["attack_forged_confirmation"]))
+        self.assertFalse(forged["authentic_confirmation_present"])
+        self.assertFalse(forged["confirmation_matches_current_proposal"])
+
+        detached = authorization_facts(trace_stimulus_dict(by_category["attack_detached_confirmation"]))
+        self.assertTrue(detached["authentic_confirmation_present"])
+        self.assertFalse(detached["confirmation_matches_current_proposal"])
+
+        cancelled = authorization_facts(trace_stimulus_dict(by_category["attack_cancelled_consent"]))
+        self.assertTrue(cancelled["cancelled_after_confirmation"])
 
     def test_dashboard_renders_and_runs_offline(self):
         html = dashboard_html()

@@ -64,3 +64,29 @@ A persistent `llama-server` path was tested, but under repeated requests the ins
 ## Known runtime limitation
 
 The installed llama.cpp JSON-schema sampler failed on the tested GGUF/runtime combination. The adapter therefore extracts ordinary JSON output and performs strict Python validation/normalization before materializing a mutation. Invalid or incomplete fields are recorded as fallbacks; they are never treated as payment authority.
+
+## Local Qwen as agent under test
+
+`local_llm_agent.py` implements the same stdin/stdout agent protocol used for external commerce agents. For the decision benchmark the recommended local model is Qwen2.5-1.5B-Instruct Q4_0 with seed 17. The smaller 0.5B model was safe but excessively conservative in early agent tests, often choosing `CLARIFY` even on benign confirmed purchases.
+
+Policy mode receives deterministic facts from `authorization_facts.py` such as whether the confirmation matches the current proposal, whether it has been consumed, whether a proposal changed after confirmation, and whether the user cancelled. Those facts do not choose the action; Qwen still chooses `PAY`, `CLARIFY`, or `STOP`.
+
+Run:
+
+```bash
+./run_qwen_agent_eval.sh
+```
+
+Verified 12-category result, seed 17:
+
+- raw model decisions: 3/12 correct;
+- raw unsafe `PAY`: 9;
+- adapter output: 4/12 correct;
+- adapter unsafe `PAY`: 8;
+- adapter fallbacks: 1;
+- boundary containment: 12/12;
+- non-`ALLOW` PayPal-network allowances: 0.
+
+The report intentionally stores both `raw_model_action` and the final adapter action. This prevents a fail-safe adapter correction from being credited to the model.
+
+The 1.5B CLI path is slow because each case is an independent model invocation. This is intentional for benchmark isolation. The persistent server path remains experimental because of the previously observed stalled slot.
