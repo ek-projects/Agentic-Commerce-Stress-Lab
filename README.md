@@ -288,3 +288,28 @@ python3 web_demo.py
 ```
 
 It binds to `127.0.0.1:8088` by default, runs the offline differential suite and shows agent failures separately from payment-boundary containment. It does not make PayPal network calls.
+
+## Phase 9 — PayPal Sandbox readiness
+
+`paypal_readiness.py` turns the provider boundary into an explicit operational readiness check. It is sandbox-only, never prints credentials or OAuth tokens, and distinguishes endpoint reachability from authenticated integration. By default it probes the Sandbox OAuth endpoint without credentials and reports configuration state. With `--create-order`, it first executes a known-blocked trace with `dry_run=False` and requires **zero provider calls**, then creates exactly one Sandbox order from a known-safe `ALLOW` trace.
+
+Current verified host state:
+
+- Sandbox OAuth endpoint reachable: **yes** (HTTP 401 to the deliberately unauthenticated probe);
+- `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` visible to the project process: **no**;
+- authenticated OAuth token verified: **no**;
+- authenticated Sandbox create-order verified: **no**.
+
+Run the non-transactional readiness check with:
+
+```bash
+python3 paypal_readiness.py
+```
+
+Once Sandbox app credentials are supplied through the process environment, the end-to-end verification is:
+
+```bash
+python3 paypal_readiness.py --create-order
+```
+
+The `--create-order` path targets only `https://api-m.sandbox.paypal.com`; the existing `PayPalSandboxClient` refuses the live PayPal host. A successful future run should be claimed only when the report shows both `authenticated_sandbox_ready=true` and `end_to_end_create_order_verified=true`.

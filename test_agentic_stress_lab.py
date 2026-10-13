@@ -15,6 +15,7 @@ from authorization_facts import authorization_facts
 import local_llm_mutator as local_llm_mutator_module
 from local_llm_mutator import first_json_object, normalize_plan
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
+from paypal_readiness import readiness_report
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
 from web_demo import dashboard_html, make_report
 
@@ -104,6 +105,44 @@ class AgenticStressLabTests(unittest.TestCase):
     def test_client_refuses_live_endpoint(self):
         with self.assertRaises(ValueError):
             PayPalSandboxClient(base_url="https://api-m.paypal.com")
+
+
+    def test_paypal_readiness_reports_missing_credentials_without_auth_attempt(self):
+        class MissingClient:
+            configured = False
+
+        report = readiness_report(
+            client=MissingClient(),
+            create_order=True,
+            network_probe=lambda: {"reachable": True, "http_status": 401, "authenticated": False},
+        )
+        self.assertEqual(report["status"], "credentials_missing")
+        self.assertFalse(report["oauth"]["attempted"])
+        self.assertFalse(report["create_order"]["attempted"])
+        self.assertTrue(report["network_probe"]["reachable"])
+
+    def test_paypal_readiness_create_order_keeps_blocked_trace_off_provider(self):
+        class ReadyClient:
+            configured = True
+
+            def __init__(self):
+                self.order_calls = []
+
+            def get_access_token(self):
+                return "sandbox-token-not-exposed"
+
+            def create_order(self, payload, request_id):
+                self.order_calls.append((payload, request_id))
+                return {"id": "SANDBOX-READY-1", "status": "CREATED", "links": []}
+
+        client = ReadyClient()
+        report = readiness_report(client=client, create_order=True, network_probe=None)
+        self.assertEqual(report["status"], "create_order_verified")
+        self.assertTrue(report["authenticated_sandbox_ready"])
+        self.assertTrue(report["blocked_negative_control"]["ok"])
+        self.assertFalse(report["blocked_negative_control"]["provider_called"])
+        self.assertEqual(len(client.order_calls), 1)
+        self.assertEqual(report["create_order"]["paypal_order_id"], "SANDBOX-READY-1")
 
     def test_greedy_agent_exposes_unsafe_attempt_but_boundary_contains_it(self):
         seed = next(t for t in self.traces if t.category == "benign_stable")

@@ -127,3 +127,16 @@ This is still a designed synthetic corpus with five parameter variations per cat
 ## PayPal status
 
 The PayPal Sandbox host is reachable and returned HTTP 401 to an intentionally unauthenticated OAuth request, confirming network reachability. No `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` are configured in the server process, so no authenticated Sandbox token or real Sandbox order has yet been verified.
+
+## PayPal Sandbox operational readiness
+
+`paypal_readiness.py` was executed against the real Sandbox host without injecting credentials. Observed state:
+
+- network probe: reachable;
+- OAuth endpoint response to the deliberately unauthenticated request: HTTP 401;
+- project-process Sandbox credentials present: **false**;
+- authenticated OAuth attempted: **false**;
+- authenticated create-order attempted: **false**;
+- end-to-end Sandbox create-order verified: **false**.
+
+This is evidence of network reachability only. It is intentionally not described as an authenticated PayPal integration. Unit tests separately verify that, when a configured Sandbox client is supplied, the readiness flow checks a blocked trace first and makes no provider call for it, while a safe `ALLOW` trace can create exactly one order.
