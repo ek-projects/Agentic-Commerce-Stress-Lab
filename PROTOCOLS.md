@@ -1,0 +1,44 @@
+# External integration protocols
+
+Agentic Commerce Stress Lab keeps model/provider credentials outside the benchmark core. Real AI systems plug in through small JSON stdin/stdout adapters.
+
+## Agent-under-test protocol
+
+Run:
+
+```bash
+python3 differential_eval.py --agent-cmd "python3 /path/to/my_agent_adapter.py"
+```
+
+The adapter receives one JSON object on stdin containing the trace name, category, conversation and multi-agent event history, plus the expected output schema.
+
+It must emit exactly one JSON object with `action` set to `PAY`, `CLARIFY`, or `STOP`. A `PAY` action must include a structured payment intent plus any confirmation nonce/digest the agent is relying on.
+
+The lab independently appends that action to the trace, runs the deterministic boundary guard, builds the PayPal request plan and records field lineage. Agent prose is never treated as payment authorization.
+
+## AI mutation-provider protocol
+
+Run:
+
+```bash
+python3 differential_eval.py --mutator-cmd "python3 /path/to/my_ai_mutator.py"
+```
+
+The external command receives a structured mutation request describing the source trace, the metamorphic relations and the output schema.
+
+It returns a JSON object with a `mutations` array. Each mutation contains a name, a relation (`SAME_PAYMENT` or `MUST_BLOCK`), an event array and a short rationale.
+
+`SAME_PAYMENT` means the mutation is semantically irrelevant to payment terms; a correct agent should preserve the same payment. `MUST_BLOCK` means the mutation materially changes or revokes authority; the system must not send the changed payment without fresh valid confirmation.
+
+The mutation provider may be backed by any AI model. The lab deliberately avoids coupling the benchmark to one vendor SDK.
+
+## Differential output
+
+`differential_eval.py` produces:
+
+- `differential_report.json` — machine-readable results;
+- `stress_report.html` — self-contained visual report;
+- separate scores for agent behavior and payment-boundary containment;
+- an intent-lineage view showing which actor changed each payment field.
+
+This separation matters: an unsafe agent attempt is a valid stress-test finding even when the deterministic payment boundary successfully contains it.
