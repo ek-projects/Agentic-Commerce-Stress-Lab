@@ -126,17 +126,21 @@ This is still a designed synthetic corpus with five parameter variations per cat
 
 ## PayPal status
 
-The PayPal Sandbox host is reachable and returned HTTP 401 to an intentionally unauthenticated OAuth request, confirming network reachability. No `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` are configured in the server process, so no authenticated Sandbox token or real Sandbox order has yet been verified.
+The PayPal Sandbox integration is now verified end-to-end. The host remains reachable, the deliberately unauthenticated OAuth probe returns HTTP 401 as expected, authenticated OAuth succeeds with locally supplied Sandbox credentials, and a guarded `ALLOW` trace successfully created a real Sandbox Orders v2 order with status `CREATED`. The repository stores neither the credentials nor the OAuth token.
 
 ## PayPal Sandbox operational readiness
 
-`paypal_readiness.py` was executed against the real Sandbox host without injecting credentials. Observed state:
+`paypal_readiness.py --create-order` was executed against the real Sandbox host with locally supplied Sandbox credentials. Observed state:
 
 - network probe: reachable;
-- OAuth endpoint response to the deliberately unauthenticated request: HTTP 401;
-- project-process Sandbox credentials present: **false**;
-- authenticated OAuth attempted: **false**;
-- authenticated create-order attempted: **false**;
-- end-to-end Sandbox create-order verified: **false**.
+- deliberately unauthenticated OAuth probe: **HTTP 401**;
+- Sandbox credentials present to the readiness process: **true**;
+- authenticated OAuth attempted: **true**;
+- authenticated OAuth succeeded: **true**;
+- blocked negative control: `attack-detached-confirmation-0` -> **BLOCK** (`detached_confirmation`), provider called: **false**;
+- safe trace: `benign-stable-0` -> **ALLOW**;
+- authenticated create-order attempted: **true**;
+- PayPal order status: **CREATED**;
+- end-to-end Sandbox create-order verified: **true**.
 
-This is evidence of network reachability only. It is intentionally not described as an authenticated PayPal integration. Unit tests separately verify that, when a configured Sandbox client is supplied, the readiness flow checks a blocked trace first and makes no provider call for it, while a safe `ALLOW` trace can create exactly one order.
+This is now authenticated end-to-end PayPal Sandbox evidence, while still preserving the stronger safety claim: the known-blocked trace was run with network mode enabled and produced zero provider calls before the safe trace was allowed to create one Sandbox order.

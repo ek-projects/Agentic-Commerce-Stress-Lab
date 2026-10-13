@@ -89,7 +89,7 @@ Safety properties:
 - `PayPal-Request-Id` is derived from the guarded payment/consent context for provider idempotency;
 - no credentials are stored in the repository.
 
-Important current limitation: `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` are not configured in the server process, so a real PayPal Sandbox API call has **not** yet been verified.
+Verified Sandbox state: authenticated OAuth and a real PayPal Sandbox Orders v2 create-order call have now been completed successfully. The repository still stores no PayPal credentials or OAuth tokens.
 
 ## Demo
 
@@ -295,10 +295,13 @@ It binds to `127.0.0.1:8088` by default, runs the offline differential suite and
 
 Current verified host state:
 
-- Sandbox OAuth endpoint reachable: **yes** (HTTP 401 to the deliberately unauthenticated probe);
-- `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` visible to the project process: **no**;
-- authenticated OAuth token verified: **no**;
-- authenticated Sandbox create-order verified: **no**.
+- Sandbox OAuth endpoint reachable: **yes**;
+- deliberately unauthenticated probe: **HTTP 401**, as expected;
+- authenticated OAuth token verified: **yes**;
+- blocked negative control: **BLOCK**, with **zero provider calls**;
+- authenticated Sandbox create-order verified: **yes**;
+- PayPal order status: **CREATED**;
+- live PayPal endpoint remains refused by the client.
 
 Run the non-transactional readiness check with:
 
