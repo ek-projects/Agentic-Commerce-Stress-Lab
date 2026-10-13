@@ -137,7 +137,8 @@ class ExternalCommandMutationProvider:
                 events=events,
                 attack=(relation == MUST_BLOCK),
             )
-            result.append(MetamorphicCase(mutated.name, relation, trace, mutated))
+            metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else None
+            result.append(MetamorphicCase(mutated.name, relation, trace, mutated, metadata))
         if not result:
             raise ValueError("Mutation provider returned zero mutations")
         return result

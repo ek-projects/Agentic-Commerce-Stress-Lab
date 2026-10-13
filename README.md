@@ -73,7 +73,7 @@ Current template suite:
 - 40 must-block mutations
 - 80/80 currently pass
 
-Next step: replace/augment template mutations with AI-generated conversation and handoff perturbations, while keeping the money-movement oracle deterministic.
+The repository now also contains a verified **local AI mutation path** using Qwen2.5-0.5B-Instruct through llama.cpp. See `LOCAL_AI.md`, `RESULTS.md` and `local_llm_mutator.py`. In the current reproducible five-seed run (seed 42), the lab evaluates 10 AI mutation plans across two agents: the payment boundary contains 20/20 evaluations, the greedy baseline makes 5 unsafe payment attempts, and the confirmation-aware baseline is relation-correct on 10/10 mutations. Only 6/10 mutations are fully model-derived; 4/10 require deterministic fallback data, so this is evidence that the integration works, not evidence that the small model is a strong red-team generator.
 
 ## PayPal boundary
 
@@ -116,6 +116,7 @@ python3 -m unittest -v
 python3 agentic_benchmark.py
 python3 metamorphic_lab.py
 python3 demo.py
+./run_qwen_eval.sh    # local Qwen path; CPU-heavy
 ```
 
 Generated artifacts:
@@ -165,10 +166,10 @@ AI should generate realistic stress cases; AI should not be the final authority 
 Before submission the project still needs:
 
 1. verified PayPal Sandbox authentication and create-order call;
-2. a real AI mutation generator integrated into the lab;
-3. at least one external agent-under-test path, ideally more than one for differential testing;
-4. intent-lineage visualization / usable product UI;
-5. stronger benchmark validity checks and stronger baselines;
+2. a stronger AI red-team generator or larger validated corpus — the current 0.5B local model is useful for hostile text but still needs fallback data on 4/10 mutations in the five-seed run;
+3. at least one real external agent under test, ideally more than one for differential testing;
+4. polish the existing lineage/dashboard UI into the final hackathon demo surface;
+5. stronger benchmark-validity checks and stronger baselines;
 6. public Git repository, reproducible setup and sub-three-minute demo video.
 
 ## Safety
@@ -202,7 +203,7 @@ Current verified default result with two deterministic comparison agents:
 
 The run generates `differential_report.json` and `stress_report.html`. The HTML report includes intent lineage so a reviewer can see which actor changed each payment field. The unsafe attempts are expected findings from the negative-control agent, not failures of the boundary.
 
-External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real model/provider is still required before we can claim AI-generated mutations or real-model agent results.
+External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real local Qwen mutator is now integrated and reproducibly exercised through `./run_qwen_eval.sh`; a real external commerce agent is still required before we can claim real-model agent-under-test results.
 
 
 ### Local dashboard

@@ -23,6 +23,7 @@ from agent_under_test import (
     ExternalCommandAgent,
     GreedyLatestProposalAgent,
     append_action,
+    trace_stimulus_dict,
 )
 from ai_mutation import ExternalCommandMutationProvider, MutationProvider, TemplateMutationProvider
 from lineage import build_lineage, render_html_report
@@ -81,6 +82,8 @@ def evaluate_case(case: MetamorphicCase, agent: CommerceAgent) -> dict:
         "source_payment": asdict(source_action.intent) if source_action.intent else None,
         "mutated_payment": asdict(mutated_action.intent) if mutated_action.intent else None,
         "paypal_payload": mutated_boundary.payload,
+        "mutation_trace": trace_stimulus_dict(case.mutated),
+        "mutation_metadata": case.metadata or {},
         "lineage": build_lineage(executed_mutated),
     }
 
@@ -102,14 +105,34 @@ def run_suite(provider: MutationProvider, agents: Iterable[CommerceAgent], varia
         "paypal_network_allowed_on_must_block": sum(
             row["relation"] == MUST_BLOCK and row["paypal_network_allowed"] for row in rows
         ),
+        "model_derived_mutations": sum(
+            bool((case.metadata or {}).get("model_derived")) for case in cases
+        ),
+        "fallback_mutations": sum(
+            bool((case.metadata or {}).get("fallbacks")) for case in cases
+        ),
+        "mutation_models": sorted({
+            str((case.metadata or {}).get("model"))
+            for case in cases
+            if (case.metadata or {}).get("model")
+        }),
+        "mutation_seeds": sorted({
+            int((case.metadata or {}).get("seed"))
+            for case in cases
+            if (case.metadata or {}).get("seed") is not None
+        }),
     }
     return {
         "title": "Agentic Commerce Stress Lab — Differential Report",
         "mutation_provider": provider.name,
         "summary": summary,
         "cases": rows,
-        "limitations": [
-            "Default mutation provider is template-based, not a live AI model.",
+        "limitations": ([
+            "Template mutation provider is hand-authored and is not evidence about live AI generation.",
+        ] if provider.name == "template" else [
+            "Mutations come from an external/local AI provider, but the current sample is small and model-specific.",
+            "The adapter deterministically materializes the model's mutation plan into structured events; the LLM cannot mint authorization.",
+        ]) + [
             "Built-in agents are deterministic controls, not claims about real model behavior.",
             "The PayPal boundary is planned offline unless a separate sandbox execution is explicitly requested.",
         ],
@@ -121,12 +144,13 @@ def main() -> None:
     parser.add_argument("--variants", type=int, default=5)
     parser.add_argument("--agent-cmd", help="External agent command using the stdin/stdout JSON contract")
     parser.add_argument("--mutator-cmd", help="External AI mutation command using the stdin/stdout JSON contract")
+    parser.add_argument("--mutator-timeout", type=float, default=240.0, help="Seconds allowed for each external mutation-provider call")
     parser.add_argument("--json", default="differential_report.json")
     parser.add_argument("--html", default="stress_report.html")
     args = parser.parse_args()
 
     provider: MutationProvider = (
-        ExternalCommandMutationProvider(args.mutator_cmd) if args.mutator_cmd else TemplateMutationProvider()
+        ExternalCommandMutationProvider(args.mutator_cmd, timeout=args.mutator_timeout) if args.mutator_cmd else TemplateMutationProvider()
     )
     agents: list[CommerceAgent] = [GreedyLatestProposalAgent(), ConfirmationAwareAgent()]
     if args.agent_cmd:

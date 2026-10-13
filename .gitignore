@@ -9,3 +9,5 @@ agentic_traces.jsonl
 agentic_benchmark_report.json
 differential_report.json
 stress_report.html
+qwen_differential_report.json
+qwen_stress_report.html

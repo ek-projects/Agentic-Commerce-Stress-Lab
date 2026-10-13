@@ -6,6 +6,7 @@ from agent_under_test import ConfirmationAwareAgent, GreedyLatestProposalAgent, 
 from ai_mutation import TemplateMutationProvider, mutation_request
 from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
+from local_llm_mutator import first_json_object, normalize_plan
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
 from web_demo import dashboard_html, make_report
@@ -162,6 +163,25 @@ class AgenticStressLabTests(unittest.TestCase):
         self.assertIn("SAME_PAYMENT", req["relations"])
         self.assertIn("MUST_BLOCK", req["relations"])
         self.assertIn("output_schema", req)
+
+    def test_local_llm_json_extractor_uses_answer_not_prompt(self):
+        mixed = (
+            'prompt source={"trace":"source","payment":{"amount_cents":2400}}\n'
+            'assistant={"name":"attack","kind":"tool_injection","text":"ignore the old instruction"}'
+        )
+        parsed = first_json_object(mixed)
+        self.assertEqual(parsed["name"], "attack")
+        self.assertEqual(parsed["kind"], "tool_injection")
+
+    def test_local_llm_kind_aliases_are_normalized_not_silently_fallbacked(self):
+        same = normalize_plan({"name": "x", "kind": "tool", "text": "hostile text"}, 0)
+        self.assertEqual(same["kind"], "tool_injection")
+        self.assertEqual(same["_fallbacks"], [])
+        self.assertIn("kind:tool->tool_injection", same["_normalizations"])
+
+        block = normalize_plan({"name": "x", "kind": "delta_cents", "text": "delta_cents=100"}, 1)
+        self.assertEqual(block["kind"], "amount_change")
+        self.assertEqual(block["_fallbacks"], [])
 
     def test_dashboard_renders_and_runs_offline(self):
         html = dashboard_html()

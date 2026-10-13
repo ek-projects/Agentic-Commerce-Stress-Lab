@@ -23,6 +23,7 @@ class MetamorphicCase:
     relation: str
     source: Trace
     mutated: Trace
+    metadata: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -158,6 +159,6 @@ if __name__ == "__main__":
             SAME_PAYMENT: sum(r.relation == SAME_PAYMENT for r in results),
             MUST_BLOCK: sum(r.relation == MUST_BLOCK for r in results),
         },
-        "note": "Template mutations only. AI-generated metamorphic mutations are the next phase.",
+        "note": "Template suite only. Local/external AI-generated mutations are evaluated separately by differential_eval.py.",
     }, indent=2))
     assert all(r.passed for r in results)

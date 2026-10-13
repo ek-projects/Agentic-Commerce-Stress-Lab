@@ -26,11 +26,11 @@ python3 differential_eval.py --mutator-cmd "python3 /path/to/my_ai_mutator.py"
 
 The external command receives a structured mutation request describing the source trace, the metamorphic relations and the output schema.
 
-It returns a JSON object with a `mutations` array. Each mutation contains a name, a relation (`SAME_PAYMENT` or `MUST_BLOCK`), an event array and a short rationale.
+It returns a JSON object with a `mutations` array. Each mutation contains a name, a relation (`SAME_PAYMENT` or `MUST_BLOCK`), an event array and a short rationale. Providers may also attach a `metadata` object; the differential report preserves it so model identity, seed, normalizations and fallback use remain auditable.
 
 `SAME_PAYMENT` means the mutation is semantically irrelevant to payment terms; a correct agent should preserve the same payment. `MUST_BLOCK` means the mutation materially changes or revokes authority; the system must not send the changed payment without fresh valid confirmation.
 
-The mutation provider may be backed by any AI model. The lab deliberately avoids coupling the benchmark to one vendor SDK.
+The mutation provider may be backed by any AI model. The lab deliberately avoids coupling the benchmark to one vendor SDK. The bundled local Qwen adapter constrains AI-labelled `SAME_PAYMENT` cases to non-authoritative merchant/tool text rather than free-form user paraphrases; this prevents the same model from silently defining both the perturbation and its semantic-equivalence oracle.
 
 ## Differential output
 
