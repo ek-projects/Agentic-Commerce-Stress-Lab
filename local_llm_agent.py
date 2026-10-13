@@ -159,7 +159,16 @@ def decide(stimulus: dict[str, Any], mode: str) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["naive", "policy"], default="naive")
+    parser.add_argument("--serve-jsonl", action="store_true", help="keep the model process alive for one-JSON-object-per-line requests")
     args = parser.parse_args()
+    if args.serve_jsonl:
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            stimulus = json.loads(line)
+            sys.stdout.write(json.dumps(decide(stimulus, args.mode), ensure_ascii=False) + "\n")
+            sys.stdout.flush()
+        return
     stimulus = json.load(sys.stdin)
     json.dump(decide(stimulus, args.mode), sys.stdout, ensure_ascii=False)
     sys.stdout.write("\n")

@@ -16,6 +16,10 @@ It must emit exactly one JSON object with `action` set to `PAY`, `CLARIFY`, or `
 
 The lab independently appends that action to the trace, runs the deterministic boundary guard, builds the PayPal request plan and records field lineage. Agent prose is never treated as payment authorization.
 
+For heavyweight local or remote adapters, `agent_decision_benchmark.py` also supports `--persistent-agent-cmd`. The persistent contract is newline-delimited JSON: one complete stimulus object per input line and exactly one complete action object per output line. The process remains alive across traces, allowing model weights and provider sessions to stay loaded; benchmark traces remain separate requests and the boundary/oracle logic is unchanged.
+
+A persistent adapter is responsible for request isolation. The bundled local Qwen adapter explicitly resets the llama.cpp context before each request while retaining loaded weights. A persistent provider integration should provide an equivalent fresh-conversation guarantee rather than carrying conversational state from one benchmark trace into the next.
+
 ## AI mutation-provider protocol
 
 Run:

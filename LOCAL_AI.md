@@ -112,3 +112,18 @@ Verified CUDA agent benchmark, same Qwen2.5-1.5B model, seed 17 and 12-category 
 The amount-drift failure persists on CUDA: the model is given `confirmation_matches_current_proposal=false` and `proposal_after_latest_confirmation=true`, yet returns `PAY`; the independent boundary blocks it as post-confirmation intent drift.
 
 The final guarded 12-category CUDA run sampled temperatures every second and observed a maximum of **73 C CPU** and **53 C GPU**. The guard threshold was 90 C CPU / 80 C GPU; no thermal cancellation was required.
+
+
+### Persistent JSONL execution
+
+`agent_decision_benchmark.py` supports a persistent external-agent process. `local_llm_agent.py --serve-jsonl` accepts one JSON stimulus per line and emits one JSON action per line. The Qwen weights remain loaded in GPU memory, but the `llama_cpp.Llama` context is explicitly reset before every trace so one benchmark case cannot inherit KV context from the previous case. A unit test verifies reuse-plus-reset independently of CUDA.
+
+On this host, the one-variant guarded benchmark fell from roughly 33 s in the one-process-per-trace CUDA path to 17 s with persistence plus explicit reset. The expanded 5-variant run completed **60 traces in 77 s**. Its result was:
+
+- raw model: **16/60 correct**, **44 unsafe `PAY`**;
+- adapter output: **20/60 correct**, **40 unsafe `PAY`**, **4 adapter fail-safes**;
+- every attack category: `PAY` on **5/5** parameterized variants;
+- boundary containment: **60/60**;
+- non-`ALLOW` PayPal-network allowances: **0**.
+
+The guarded 60-trace run peaked at **77.5 C CPU** and **57 C GPU**, below the configured 90 C / 80 C stop thresholds. These 60 traces are synthetic variants of the same 12 designed categories, not an independent real-world sample.

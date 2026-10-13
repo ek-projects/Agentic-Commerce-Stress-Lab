@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import json
 import shlex
+import select
 import subprocess
 from typing import Iterable, Optional, Protocol
 
@@ -160,14 +161,45 @@ class ConfirmationAwareAgent:
         return AgentAction(PAY, "Latest proposal is still exactly confirmed.", latest_intent, nonce, digest)
 
 
+def _external_action_from_raw(raw: dict) -> AgentAction:
+    action = str(raw.get("action", "")).upper()
+    if action not in {PAY, CLARIFY, STOP}:
+        raise ValueError(f"Invalid external action: {action!r}")
+
+    intent = None
+    if raw.get("intent") is not None:
+        intent = PaymentIntent(**raw["intent"])
+    if action == PAY and intent is None:
+        raise ValueError("PAY requires an intent")
+
+    metadata = {}
+    if isinstance(raw.get("metadata"), dict):
+        metadata.update(raw["metadata"])
+    for key in (
+        "adapter_fallback",
+        "model_raw",
+        "model",
+        "seed",
+        "mode",
+        "backend",
+        "gpu_layers",
+        "authorization_facts",
+    ):
+        if key in raw:
+            metadata[key] = raw[key]
+
+    return AgentAction(
+        action=action,
+        reason=str(raw.get("reason", "")),
+        intent=intent,
+        nonce=raw.get("nonce"),
+        digest=raw.get("digest"),
+        metadata=metadata or None,
+    )
+
+
 class ExternalCommandAgent:
-    """Run any external agent through a tiny stdin/stdout JSON contract.
-
-    Example command shape:
-        python3 my_agent_adapter.py
-
-    The adapter receives one JSON object on stdin and must emit exactly one JSON object.
-    """
+    """Run any external agent through a one-shot stdin/stdout JSON contract."""
 
     def __init__(self, command: str, *, timeout: float = 60.0, name: Optional[str] = None):
         self.command = command
@@ -189,29 +221,101 @@ class ExternalCommandAgent:
             raw = json.loads(proc.stdout)
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"External agent did not return valid JSON: {proc.stdout[:1000]}") from exc
+        if not isinstance(raw, dict):
+            raise RuntimeError("External agent response must be a JSON object")
+        return _external_action_from_raw(raw)
 
-        action = str(raw.get("action", "")).upper()
-        if action not in {PAY, CLARIFY, STOP}:
-            raise ValueError(f"Invalid external action: {action!r}")
 
-        intent = None
-        if raw.get("intent") is not None:
-            intent = PaymentIntent(**raw["intent"])
-        if action == PAY and intent is None:
-            raise ValueError("PAY requires an intent")
+class PersistentExternalCommandAgent:
+    """Keep an external JSONL agent process alive across benchmark traces.
 
-        metadata = {}
-        if isinstance(raw.get("metadata"), dict):
-            metadata.update(raw["metadata"])
-        for key in ("adapter_fallback", "model_raw", "model", "seed", "mode", "backend", "gpu_layers", "authorization_facts"):
-            if key in raw:
-                metadata[key] = raw[key]
+    Each input line is one trace stimulus and each output line must be one JSON action.
+    This keeps heavyweight model state loaded while preserving independent requests.
+    """
 
-        return AgentAction(
-            action=action,
-            reason=str(raw.get("reason", "")),
-            intent=intent,
-            nonce=raw.get("nonce"),
-            digest=raw.get("digest"),
-            metadata=metadata or None,
+    def __init__(self, command: str, *, timeout: float = 60.0, name: Optional[str] = None):
+        self.command = command
+        self.timeout = timeout
+        self.name = name or f"persistent:{command}"
+        self._proc: Optional[subprocess.Popen] = None
+
+    def _start(self) -> subprocess.Popen:
+        if self._proc is not None and self._proc.poll() is None:
+            return self._proc
+        self._proc = subprocess.Popen(
+            shlex.split(self.command),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
         )
+        return self._proc
+
+    def _stderr_excerpt(self, proc: subprocess.Popen) -> str:
+        if proc.stderr is None or proc.poll() is None:
+            return ""
+        try:
+            return proc.stderr.read()[-1000:]
+        except Exception:
+            return ""
+
+    def run(self, trace: Trace) -> AgentAction:
+        proc = self._start()
+        if proc.stdin is None or proc.stdout is None:
+            raise RuntimeError("Persistent external agent pipes are unavailable")
+        payload = json.dumps(trace_stimulus_dict(trace), separators=(",", ":"))
+        try:
+            proc.stdin.write(payload + "\n")
+            proc.stdin.flush()
+        except BrokenPipeError as exc:
+            code = proc.poll()
+            raise RuntimeError(
+                f"Persistent external agent closed stdin (exit={code}): {self._stderr_excerpt(proc)}"
+            ) from exc
+
+        ready, _, _ = select.select([proc.stdout], [], [], self.timeout)
+        if not ready:
+            self.close(force=True)
+            raise TimeoutError(f"Persistent external agent timed out after {self.timeout}s")
+        line = proc.stdout.readline()
+        if not line:
+            code = proc.poll()
+            raise RuntimeError(
+                f"Persistent external agent closed stdout (exit={code}): {self._stderr_excerpt(proc)}"
+            )
+        try:
+            raw = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Persistent external agent returned invalid JSON line: {line[:1000]}") from exc
+        if not isinstance(raw, dict):
+            raise RuntimeError("Persistent external agent response must be a JSON object")
+        return _external_action_from_raw(raw)
+
+    def close(self, *, force: bool = False) -> None:
+        proc = self._proc
+        self._proc = None
+        if proc is None:
+            return
+        if proc.poll() is None and not force and proc.stdin is not None:
+            try:
+                proc.stdin.close()
+                proc.wait(timeout=2.0)
+            except (BrokenPipeError, subprocess.TimeoutExpired):
+                force = True
+        if proc.poll() is None and force:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2.0)
+        for stream in (proc.stdin, proc.stdout, proc.stderr):
+            if stream is not None and not stream.closed:
+                stream.close()
+
+    def __del__(self):
+        try:
+            self.close(force=True)
+        except Exception:
+            pass

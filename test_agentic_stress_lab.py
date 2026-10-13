@@ -1,10 +1,12 @@
 import tempfile
 import unittest
+import sys
+import types
 from unittest.mock import patch
 from pathlib import Path
 
 from agent_decision_benchmark import run as run_agent_decision_benchmark
-from agent_under_test import AgentAction, ConfirmationAwareAgent, GreedyLatestProposalAgent, PAY, STOP, append_action, trace_stimulus_dict
+from agent_under_test import AgentAction, ConfirmationAwareAgent, GreedyLatestProposalAgent, PAY, STOP, PersistentExternalCommandAgent, append_action, trace_stimulus_dict
 from ai_mutation import TemplateMutationProvider, mutation_request
 from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
@@ -192,6 +194,37 @@ class AgenticStressLabTests(unittest.TestCase):
             0.2,
         )
 
+    def test_local_llm_persistent_backend_resets_context_between_requests(self):
+        instances = []
+
+        class FakeLlama:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+                self.reset_count = 0
+                instances.append(self)
+
+            def reset(self):
+                self.reset_count += 1
+
+            def create_chat_completion(self, **kwargs):
+                return {"choices": [{"message": {"content": '{"ok":true}'}}]}
+
+        fake_module = types.SimpleNamespace(Llama=FakeLlama)
+        with (
+            patch.dict(sys.modules, {"llama_cpp": fake_module}),
+            patch.object(local_llm_mutator_module, "_LLAMA_PY_MODEL", None),
+            patch.object(local_llm_mutator_module, "_LLAMA_PY_KEY", None),
+            patch.object(local_llm_mutator_module, "MODEL", "/tmp/fake.gguf"),
+            patch.object(local_llm_mutator_module, "LLAMA_PY_GPU_LAYERS", -1),
+            patch.object(local_llm_mutator_module, "LLAMA_PY_N_CTX", 1024),
+        ):
+            first = local_llm_mutator_module._call_llama_cpp_python("sys", "one", 8, 17, 0.1)
+            second = local_llm_mutator_module._call_llama_cpp_python("sys", "two", 8, 17, 0.1)
+            self.assertEqual(len(instances), 1)
+            self.assertEqual(instances[0].reset_count, 2)
+        self.assertEqual(first, {"ok": True})
+        self.assertEqual(second, {"ok": True})
+
     def test_local_llm_kind_aliases_are_normalized_not_silently_fallbacked(self):
         same = normalize_plan({"name": "x", "kind": "tool", "text": "hostile text"}, 0)
         self.assertEqual(same["kind"], "tool_injection")
@@ -201,6 +234,26 @@ class AgenticStressLabTests(unittest.TestCase):
         block = normalize_plan({"name": "x", "kind": "delta_cents", "text": "delta_cents=100"}, 1)
         self.assertEqual(block["kind"], "amount_change")
         self.assertEqual(block["_fallbacks"], [])
+
+    def test_persistent_external_agent_reuses_one_process(self):
+        with tempfile.TemporaryDirectory() as td:
+            script = Path(td) / "persistent_agent.py"
+            script.write_text(
+                "import json, sys\n"
+                "count = 0\n"
+                "for line in sys.stdin:\n"
+                "    count += 1\n"
+                "    json.loads(line)\n"
+                "    print(json.dumps({'action':'CLARIFY','reason':f'call-{count}'}), flush=True)\n"
+            )
+            agent = PersistentExternalCommandAgent(f"{sys.executable} {script}", timeout=2.0)
+            try:
+                first = agent.run(self.traces[0])
+                second = agent.run(self.traces[1])
+            finally:
+                agent.close()
+        self.assertEqual(first.reason, "call-1")
+        self.assertEqual(second.reason, "call-2")
 
     def test_agent_decision_benchmark_tracks_raw_model_action(self):
         class RawPayButSafeAdapter:

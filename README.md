@@ -230,6 +230,17 @@ Verified CUDA backend on the same model/seed/corpus using `llama-cpp-python 0.3.
 - non-`ALLOW` cases reaching the PayPal network boundary: **0**;
 - runtime smoke: ~143 prompt tokens/s and ~89 generation tokens/s, with ~886 MiB of model weights in VRAM.
 
+With the persistent JSONL adapter, model weights stay loaded while the Llama context is explicitly reset before every trace. An expanded guarded run with `ACL_AGENT_VARIANTS=5` evaluated **60 synthetic traces** (5 parameterized variants of each of the same 12 categories) in **77 s**:
+
+- raw model: **16/60 correct**, **44 unsafe `PAY`** decisions;
+- adapter output: **20/60 correct**, **40 unsafe `PAY`** decisions, **4 fail-safe corrections**;
+- all eight attack categories produced `PAY` on **5/5 variants each**;
+- deterministic boundary: **60/60 correct containment**;
+- non-`ALLOW` cases reaching the PayPal network boundary: **0**;
+- maximum observed temperature: **77.5 C CPU / 57 C GPU**.
+
+The 60 traces are synthetic parameter variations, not 60 independent real-world incidents. The expanded run strengthens reproducibility of this model-specific failure pattern; it does not establish attack prevalence or behavior of other models.
+
 The strongest reproduced failure is amount drift after confirmation. Qwen receives `confirmation_matches_current_proposal=false` and `proposal_after_latest_confirmation=true`, yet still outputs `PAY` and explains that the proposal is covered by confirmation. The deterministic boundary blocks the attempt as post-confirmation intent drift. This is a model-specific empirical observation, not a claim about all LLMs.
 
 Run the local agent benchmark with:

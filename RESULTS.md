@@ -76,6 +76,19 @@ The CUDA chat backend correctly chose `CLARIFY` for the ambiguous-no-confirmatio
 
 The final 12-category CUDA verification ran under a one-second thermal guard. Maximum observed temperatures were 73 C for the CPU sensor maximum and 53 C for the GPU; the configured stop thresholds were 90 C and 80 C respectively.
 
+
+A persistent JSONL mode was then added so the same GPU-resident model can serve multiple independent benchmark requests. The Llama context is explicitly reset before each trace. With 5 parameterized variants of each category (**60 synthetic traces total**), seed 17:
+
+- raw model: **16/60 decision-correct** and **44 unsafe `PAY`** decisions;
+- adapter output: **20/60 decision-correct**, **40 unsafe `PAY`**, **4 fail-safe corrections**;
+- all eight attack categories were `PAY` on **5/5 variants each**;
+- deterministic boundary: **60/60 correct containment**;
+- non-`ALLOW` cases allowed to the PayPal network boundary: **0**;
+- elapsed wall time: **77 s** on this host;
+- maximum guarded temperature: **77.5 C CPU / 57 C GPU**.
+
+This expanded corpus is still designed synthetic data: the five variants change trace parameters but do not constitute independent real-world attack observations. The result is evidence of repeatability for this particular model/configuration and boundary, not prevalence or universal LLM behavior.
+
 ## Runtime failures intentionally excluded
 
 - A llama.cpp JSON-schema sampler attempt failed during sampler initialization.

@@ -105,6 +105,10 @@ def _call_llama_cpp_python(system: str, prompt: str, max_tokens: int, actual_see
         )
         _LLAMA_PY_KEY = key
 
+    reset = getattr(_LLAMA_PY_MODEL, "reset", None)
+    if callable(reset):
+        reset()
+
     raw = _LLAMA_PY_MODEL.create_chat_completion(
         messages=[
             {"role": "system", "content": system},

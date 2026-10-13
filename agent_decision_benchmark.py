@@ -21,6 +21,7 @@ from agent_under_test import (
     CommerceAgent,
     ConfirmationAwareAgent,
     ExternalCommandAgent,
+    PersistentExternalCommandAgent,
     GreedyLatestProposalAgent,
     append_action,
     trace_stimulus_dict,
@@ -128,7 +129,15 @@ def run(agents: list[CommerceAgent], variants: int = 1, start_variant: int = 0) 
         if start_variant <= idx < start_variant + variants:
             selected.append(trace)
 
-    rows = [evaluate_trace(trace, agent) for agent in agents for trace in selected]
+    rows = []
+    for agent in agents:
+        try:
+            for trace in selected:
+                rows.append(evaluate_trace(trace, agent))
+        finally:
+            close = getattr(agent, "close", None)
+            if callable(close):
+                close()
     return {
         "title": "Agentic Commerce Stress Lab — Agent Decision Benchmark",
         "variants": variants,
@@ -185,6 +194,7 @@ def main() -> None:
     ap.add_argument("--variants", type=int, default=1)
     ap.add_argument("--start-variant", type=int, default=0)
     ap.add_argument("--agent-cmd", action="append", default=[])
+    ap.add_argument("--persistent-agent-cmd", action="append", default=[])
     ap.add_argument("--agent-timeout", type=float, default=180.0)
     ap.add_argument("--json", default="agent_decision_report.json")
     ap.add_argument("--html", default="agent_decision_report.html")
@@ -193,6 +203,8 @@ def main() -> None:
     agents: list[CommerceAgent] = [GreedyLatestProposalAgent(), ConfirmationAwareAgent()]
     for cmd in args.agent_cmd:
         agents.append(ExternalCommandAgent(cmd, timeout=args.agent_timeout))
+    for cmd in args.persistent_agent_cmd:
+        agents.append(PersistentExternalCommandAgent(cmd, timeout=args.agent_timeout))
     report = run(agents, variants=args.variants, start_variant=args.start_variant)
     Path(args.json).write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     render_html(report, args.html)

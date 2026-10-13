@@ -17,7 +17,7 @@ fi
 
 exec python3 agent_decision_benchmark.py \
   --variants "$VARIANTS" \
-  --agent-cmd "$AGENT_PY local_llm_agent.py --mode policy" \
+  --persistent-agent-cmd "$AGENT_PY local_llm_agent.py --mode policy --serve-jsonl" \
   --agent-timeout 240 \
   --json qwen15_decision_report.json \
   --html qwen15_decision_report.html
