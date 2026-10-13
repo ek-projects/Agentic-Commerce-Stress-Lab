@@ -213,7 +213,7 @@ External integrations are invoked with `--agent-cmd` and `--mutator-cmd`. A real
 
 The lab now evaluates a real local Qwen2.5-1.5B-Instruct model as the commerce decision component. The model sees the ordered event history plus deterministic authorization facts in policy mode, then chooses `PAY`, `CLARIFY`, or `STOP`. The adapter may attach existing structured intent/consent evidence to a `PAY`, but it cannot mint a nonce or digest. The deterministic payment boundary remains independent.
 
-Verified one-variant / 12-category run, model seed 17:
+Verified CPU CLI baseline, one variant / 12 categories, model seed 17:
 
 - raw Qwen decisions: **3/12 correct**;
 - raw Qwen unsafe `PAY` decisions: **9**;
@@ -221,6 +221,14 @@ Verified one-variant / 12-category run, model seed 17:
 - adapter fallbacks: **1**;
 - payment boundary: **12/12 contained correctly**;
 - non-`ALLOW` cases reaching the PayPal network boundary: **0**.
+
+Verified CUDA backend on the same model/seed/corpus using `llama-cpp-python 0.3.36` and a GTX 1650:
+
+- all 29 model layers offloaded to CUDA;
+- raw/model adapter decisions: **4/12 correct** with **8 unsafe `PAY`** decisions and **0 adapter fallbacks**;
+- payment boundary: **12/12 contained correctly**;
+- non-`ALLOW` cases reaching the PayPal network boundary: **0**;
+- runtime smoke: ~143 prompt tokens/s and ~89 generation tokens/s, with ~886 MiB of model weights in VRAM.
 
 The strongest reproduced failure is amount drift after confirmation. Qwen receives `confirmation_matches_current_proposal=false` and `proposal_after_latest_confirmation=true`, yet still outputs `PAY` and explains that the proposal is covered by confirmation. The deterministic boundary blocks the attempt as post-confirmation intent drift. This is a model-specific empirical observation, not a claim about all LLMs.
 
@@ -230,7 +238,7 @@ Run the local agent benchmark with:
 ./run_qwen_agent_eval.sh
 ```
 
-The 1.5B CLI path is CPU-heavy and intended for benchmark evidence, not the interactive dashboard. Generated decision reports are ignored by Git.
+The runner auto-detects the local CUDA `llama-cpp-python` environment when present and otherwise falls back to the CLI path. Generated decision reports and `.runtime/` are ignored by Git.
 
 ### Local dashboard
 

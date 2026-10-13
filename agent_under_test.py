@@ -203,7 +203,7 @@ class ExternalCommandAgent:
         metadata = {}
         if isinstance(raw.get("metadata"), dict):
             metadata.update(raw["metadata"])
-        for key in ("adapter_fallback", "model_raw", "model", "seed", "mode", "authorization_facts"):
+        for key in ("adapter_fallback", "model_raw", "model", "seed", "mode", "backend", "gpu_layers", "authorization_facts"):
             if key in raw:
                 metadata[key] = raw[key]
 

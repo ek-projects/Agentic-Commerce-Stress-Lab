@@ -118,6 +118,8 @@ def decide(stimulus: dict[str, Any], mode: str) -> dict[str, Any]:
             "model": os.path.basename(os.environ.get("ACL_LOCAL_MODEL", "qwen-local")),
             "seed": AGENT_SEED,
             "mode": mode,
+            "backend": os.environ.get("ACL_LLM_BACKEND", "cli"),
+            "gpu_layers": int(os.environ.get("ACL_LLM_GPU_LAYERS", "0")),
         }
 
     action, reason, fallback = normalize_choice(raw)
@@ -129,6 +131,8 @@ def decide(stimulus: dict[str, Any], mode: str) -> dict[str, Any]:
         "model": os.path.basename(os.environ.get("ACL_LOCAL_MODEL", "qwen-local")),
         "seed": AGENT_SEED,
         "mode": mode,
+        "backend": os.environ.get("ACL_LLM_BACKEND", "cli"),
+        "gpu_layers": int(os.environ.get("ACL_LLM_GPU_LAYERS", "0")),
         "authorization_facts": authorization_facts(stimulus) if mode == "policy" else None,
     }
     if action != "PAY":

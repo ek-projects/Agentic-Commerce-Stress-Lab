@@ -20,6 +20,12 @@ MODEL = os.environ.get(
 )
 LLAMA_CLI = os.environ.get("ACL_LLAMA_CLI", "/usr/bin/llama-cli")
 LLAMA_URL = os.environ.get("ACL_LLAMA_URL", "").rstrip("/")
+LLM_BACKEND = os.environ.get("ACL_LLM_BACKEND", "cli").strip().lower()
+PYTHON_BACKENDS = {"llama_cpp_python", "python", "cuda"}
+LLAMA_PY_GPU_LAYERS = int(os.environ.get("ACL_LLM_GPU_LAYERS", "0"))
+LLAMA_PY_N_CTX = int(os.environ.get("ACL_LLM_N_CTX", "3072"))
+_LLAMA_PY_MODEL = None
+_LLAMA_PY_KEY = None
 SAME = "SAME_PAYMENT"
 BLOCK = "MUST_BLOCK"
 SEED = int(os.environ.get("ACL_MUTATION_SEED", "42"))
@@ -79,9 +85,45 @@ def first_json_object(text: str) -> dict[str, Any]:
     return last
 
 
+def _call_llama_cpp_python(system: str, prompt: str, max_tokens: int, actual_seed: int, temperature: float) -> dict[str, Any]:
+    """Run the optional llama-cpp-python backend and reuse one model load per adapter process."""
+    global _LLAMA_PY_MODEL, _LLAMA_PY_KEY
+    try:
+        from llama_cpp import Llama
+    except ImportError as exc:
+        raise RuntimeError("llama-cpp-python is required for ACL_LLM_BACKEND=llama_cpp_python") from exc
+
+    key = (MODEL, LLAMA_PY_GPU_LAYERS, LLAMA_PY_N_CTX)
+    if _LLAMA_PY_MODEL is None or _LLAMA_PY_KEY != key:
+        _LLAMA_PY_MODEL = Llama(
+            model_path=MODEL,
+            n_ctx=LLAMA_PY_N_CTX,
+            n_gpu_layers=LLAMA_PY_GPU_LAYERS,
+            n_threads=4,
+            seed=actual_seed,
+            verbose=False,
+        )
+        _LLAMA_PY_KEY = key
+
+    raw = _LLAMA_PY_MODEL.create_chat_completion(
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=0.9,
+        seed=actual_seed,
+    )
+    content = raw["choices"][0]["message"]["content"] or ""
+    return first_json_object(content)
+
+
 def call_model(prompt: str, max_tokens: int, *, seed: int | None = None, temperature: float = 0.55) -> dict[str, Any]:
     system = "Return exactly one valid JSON object. No markdown and no explanation."
     actual_seed = SEED if seed is None else seed
+    if LLM_BACKEND in PYTHON_BACKENDS:
+        return _call_llama_cpp_python(system, prompt, max_tokens, actual_seed, temperature)
     if LLAMA_URL:
         body = json.dumps({
             "model": "local",
@@ -341,7 +383,9 @@ def apply_plan(source: dict[str, Any], plan: dict[str, Any], index: int) -> dict
         "metadata": {
             "generator": "local_llm",
             "model": os.path.basename(MODEL),
-            "runtime": "llama-server" if LLAMA_URL else "llama-cli",
+            "runtime": ("llama-cpp-python" if LLM_BACKEND in PYTHON_BACKENDS else ("llama-server" if LLAMA_URL else "llama-cli")),
+            "backend": LLM_BACKEND,
+            "gpu_layers": LLAMA_PY_GPU_LAYERS if LLM_BACKEND in PYTHON_BACKENDS else 0,
             "normalized_kind": kind,
             "model_derived": not unique_fallbacks,
             "fallbacks": unique_fallbacks,

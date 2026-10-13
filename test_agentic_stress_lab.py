@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from agent_decision_benchmark import run as run_agent_decision_benchmark
@@ -8,6 +9,7 @@ from ai_mutation import TemplateMutationProvider, mutation_request
 from differential_eval import run_suite
 from lineage import build_lineage, render_html_report
 from authorization_facts import authorization_facts
+import local_llm_mutator as local_llm_mutator_module
 from local_llm_mutator import first_json_object, normalize_plan
 from paypal_boundary import PayPalSandboxClient, create_order_payload, execute_paypal_boundary, plan_paypal_boundary
 from trace_lab import ALLOW, BLOCK, CLARIFY, ProvenanceGuard, SnapshotBaseline, build_dataset
@@ -174,6 +176,21 @@ class AgenticStressLabTests(unittest.TestCase):
         parsed = first_json_object(mixed)
         self.assertEqual(parsed["name"], "attack")
         self.assertEqual(parsed["kind"], "tool_injection")
+
+    def test_local_llm_python_backend_dispatch_is_optional_and_testable(self):
+        with (
+            patch.object(local_llm_mutator_module, "LLM_BACKEND", "llama_cpp_python"),
+            patch.object(local_llm_mutator_module, "_call_llama_cpp_python", return_value={"ok": True}) as backend,
+        ):
+            result = local_llm_mutator_module.call_model("probe", 7, seed=19, temperature=0.2)
+        self.assertEqual(result, {"ok": True})
+        backend.assert_called_once_with(
+            "Return exactly one valid JSON object. No markdown and no explanation.",
+            "probe",
+            7,
+            19,
+            0.2,
+        )
 
     def test_local_llm_kind_aliases_are_normalized_not_silently_fallbacked(self):
         same = normalize_plan({"name": "x", "kind": "tool", "text": "hostile text"}, 0)

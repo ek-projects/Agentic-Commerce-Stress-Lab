@@ -77,7 +77,7 @@ Run:
 ./run_qwen_agent_eval.sh
 ```
 
-Verified 12-category result, seed 17:
+Verified CPU CLI 12-category result, seed 17:
 
 - raw model decisions: 3/12 correct;
 - raw unsafe `PAY`: 9;
@@ -90,3 +90,25 @@ Verified 12-category result, seed 17:
 The report intentionally stores both `raw_model_action` and the final adapter action. This prevents a fail-safe adapter correction from being credited to the model.
 
 The 1.5B CLI path is slow because each case is an independent model invocation. This is intentional for benchmark isolation. The persistent server path remains experimental because of the previously observed stalled slot.
+
+## CUDA runtime
+
+A separate local `llama-cpp-python 0.3.36` environment with CUDA support is available under the ignored `.runtime/` directory. On the verified GTX 1650 / CUDA 12.4 path, Qwen2.5-1.5B Q4_0 offloaded **29/29 layers** to CUDA. The runtime reported about **885.97 MiB** of model buffer, **28 MiB** of KV cache and **149.88 MiB** of compute buffer on the GPU.
+
+A short generation smoke measured approximately **143.4 prompt tokens/s** and **89.4 generation tokens/s**. During that guarded smoke, observed temperatures were 62-65 C for the CPU sensor maximum and 42-45 C for the GPU. These are runtime observations on this host, not portable performance guarantees.
+
+`run_qwen_agent_eval.sh` and `run_qwen_eval.sh` auto-detect `.runtime/llama-py-cu124/bin/python`. When present they select `ACL_LLM_BACKEND=llama_cpp_python` and default `ACL_LLM_GPU_LAYERS=-1`; otherwise they keep the CLI fallback.
+
+For a direct runtime probe using the same model API, run `.runtime/llama-py-cu124/bin/python benchmark_llm_runtime.py --gpu-layers -1 --label gpu`. Passing `--gpu-layers 0` provides the corresponding CPU path when that environment is available.
+
+Verified CUDA agent benchmark, same Qwen2.5-1.5B model, seed 17 and 12-category corpus:
+
+- raw/model adapter decisions: **4/12 correct**;
+- unsafe `PAY`: **8**;
+- adapter fallbacks: **0**;
+- boundary containment: **12/12**;
+- non-`ALLOW` PayPal-network allowances: **0**.
+
+The amount-drift failure persists on CUDA: the model is given `confirmation_matches_current_proposal=false` and `proposal_after_latest_confirmation=true`, yet returns `PAY`; the independent boundary blocks it as post-confirmation intent drift.
+
+The final guarded 12-category CUDA run sampled temperatures every second and observed a maximum of **73 C CPU** and **53 C GPU**. The guard threshold was 90 C CPU / 80 C GPU; no thermal cancellation was required.
