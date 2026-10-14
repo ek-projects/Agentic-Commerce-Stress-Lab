@@ -1,5 +1,9 @@
 # Agentic Commerce Stress Lab
 
+[![CI](https://github.com/ek-projects/Agentic-Commerce-Stress-Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/ek-projects/Agentic-Commerce-Stress-Lab/actions/workflows/ci.yml)
+
+![Agentic Commerce Stress Lab dashboard](docs/dashboard.png)
+
 Experimental lab for testing whether AI commerce agents preserve **user payment intent across conversations, tool calls and agent handoffs**.
 
 The project is now positioned as a **metamorphic / differential stress-testing tool**, not as another payment firewall or a claim that AI beats deterministic security rules.
