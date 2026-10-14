@@ -12,6 +12,10 @@ https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
 
 https://youtu.be/9Wx1c9x-aPw
 
+## Public Devpost submission
+
+https://devpost.com/software/agentic-commerce-stress-lab
+
 ## One-line pitch
 
 A metamorphic and differential stress-testing lab that finds when AI commerce agents lose the user's payment intent across conversations and handoffs, then verifies that unsafe attempts stop before the PayPal payment boundary.
@@ -135,4 +139,4 @@ Show authenticated OAuth and E2E create-order `VERIFIED`. For the known-safe `AL
 - [x] Sanitized verified evidence bundled in repository
 - [x] Public GitHub repository: https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
 - [x] Public YouTube demo video under 3 minutes: https://youtu.be/9Wx1c9x-aPw
-- [ ] Final Devpost form submitted
+- [x] Final Devpost form submitted: https://devpost.com/software/agentic-commerce-stress-lab

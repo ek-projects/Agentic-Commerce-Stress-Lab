@@ -185,9 +185,9 @@ Public repository: https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
 
 Public demo video: https://youtu.be/9Wx1c9x-aPw
 
-Remaining external delivery item before Devpost submission:
+Public Devpost submission: https://devpost.com/software/agentic-commerce-stress-lab
 
-1. paste the final description, repository URL, video URL, and tool list into Devpost and submit.
+Submission status: **submitted** to the PayPal AI Hackathon.
 
 `SUBMISSION.md` contains the prepared English description, evidence summary, video script, and checklist.
 
