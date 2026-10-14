@@ -183,10 +183,11 @@ The technical proof-of-concept is judge-ready: authenticated PayPal Sandbox crea
 
 Public repository: https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
 
-Remaining external delivery items before Devpost submission:
+Public demo video: https://youtu.be/9Wx1c9x-aPw
 
-1. upload the prepared 90-second dashboard demo to public YouTube;
-2. paste the final description, repository URL, video URL, and tool list into Devpost and submit.
+Remaining external delivery item before Devpost submission:
+
+1. paste the final description, repository URL, video URL, and tool list into Devpost and submit.
 
 `SUBMISSION.md` contains the prepared English description, evidence summary, video script, and checklist.
 
