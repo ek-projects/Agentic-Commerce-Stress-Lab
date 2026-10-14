@@ -177,11 +177,12 @@ AI should generate realistic stress cases; AI should not be the final authority 
 
 The technical proof-of-concept is judge-ready: authenticated PayPal Sandbox create-order is verified, two local model families have been compared on the same controlled corpus, the dashboard separates unsafe model decisions from boundary containment, an open-source license is present, and the clean-clone demo includes sanitized verified evidence.
 
-External delivery items still required before Devpost submission:
+Public repository: https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
 
-1. publish/push this repository to a public GitHub, GitLab, or Bitbucket URL;
-2. record the actual dashboard and upload a public YouTube demo under three minutes;
-3. paste the final description, repository URL, video URL, and tool list into Devpost.
+Remaining external delivery items before Devpost submission:
+
+1. upload the prepared 90-second dashboard demo to public YouTube;
+2. paste the final description, repository URL, video URL, and tool list into Devpost and submit.
 
 `SUBMISSION.md` contains the prepared English description, evidence summary, video script, and checklist.
 

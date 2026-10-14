@@ -4,6 +4,10 @@
 
 **Agentic Commerce Stress Lab**
 
+## Public repository
+
+https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
+
 ## One-line pitch
 
 A metamorphic and differential stress-testing lab that finds when AI commerce agents lose the user's payment intent across conversations and handoffs, then verifies that unsafe attempts stop before the PayPal payment boundary.
@@ -80,33 +84,33 @@ See `ORIGINALITY.md` for prior-art positioning.
 - Boundary containment does not make an incorrect model decision correct; the UI reports both separately.
 - No production PayPal endpoint or real-money payment is used.
 
-## Demo video script — target 2:35
+## Demo video script — target 1:30
 
-**0:00–0:18 — Hook**
+**0:00–0:10 — Hook**
 
 “An AI shopping agent can remember what you asked for and still lose what you actually authorized. Agentic Commerce Stress Lab tests the gap between conversation and payment.”
 
-Show the dashboard title and the three-stage Judge Demo panel.
+Show the dashboard title and Judge Demo panel.
 
-**0:18–0:48 — The failure**
+**0:10–0:28 — Cross-model failure**
 
-Show cross-model evidence. Explain that the same 60 controlled traces were run through Qwen2.5 and SmolLM2. Highlight: 59/60 raw-action agreement, and both models chose `PAY` on 40/40 material attack traces.
+Show the Qwen2.5 and SmolLM2 evidence: 59/60 raw-action agreement, with both models choosing `PAY` on all 40 material attack traces.
 
-**0:48–1:20 — Metamorphic testing**
+**0:28–0:45 — Metamorphic testing**
 
-Show a differential row: an irrelevant change is `SAME_PAYMENT`; an amount/currency/merchant/cancellation/replay mutation is `MUST_BLOCK`. Show intent lineage or the row table and emphasize that agent correctness and payment-boundary containment are scored separately.
+Show `SAME_PAYMENT` versus `MUST_BLOCK` rows and intent lineage. Emphasize that agent correctness and boundary containment are scored separately.
 
-**1:20–1:55 — Independent boundary**
+**0:45–1:05 — Independent boundary**
 
-Show the negative-control result. “The model wants to pay, but authorization evidence no longer matches the current proposal. The deterministic boundary blocks it before the provider call.” Highlight provider called: NO.
+Show the blocked negative control: authorization evidence no longer matches the current proposal, so the deterministic boundary returns `BLOCK` and makes zero provider calls.
 
-**1:55–2:20 — PayPal integration**
+**1:05–1:20 — PayPal Sandbox**
 
-Show PayPal Sandbox readiness: authenticated OAuth and E2E create-order VERIFIED. “For a known-safe ALLOW trace, the same boundary permits the PayPal Orders v2 call; Sandbox returns CREATED.”
+Show authenticated OAuth and E2E create-order `VERIFIED`. For the known-safe `ALLOW` trace, PayPal Orders v2 returns `CREATED`.
 
-**2:20–2:35 — Close**
+**1:20–1:30 — Close**
 
-“AI generates and exposes the failure. An auditable boundary decides whether money moves. That gives agent builders a reproducible way to test payment intent before deployment.”
+“AI generates and exposes the failure. An auditable boundary decides whether money moves.”
 
 ## Video recording checklist
 
@@ -125,6 +129,6 @@ Show PayPal Sandbox readiness: authenticated OAuth and E2E create-order VERIFIED
 - [x] Open-source license in repository
 - [x] Reproducible judge quick start
 - [x] Sanitized verified evidence bundled in repository
-- [ ] Public GitHub/GitLab/Bitbucket repository URL
-- [ ] Public YouTube demo video under 3 minutes
+- [x] Public GitHub repository: https://github.com/ek-projects/Agentic-Commerce-Stress-Lab
+- [ ] Public YouTube demo video under 3 minutes — 90-second local cut rendered; upload pending
 - [ ] Final Devpost form submitted
